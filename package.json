@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "name": "webpack-experiment",
+  "version": "1.0.0",
+  "description": "A webpack code spliting and lazy loading experiment",
+  "license": "ISC",
+  "main": "index.js",
+  "dependencies": {
+    "@types/gradient-string": "^1.1.1",
+    "@types/ink-divider": "^2.0.1",
+    "@types/ink-gradient": "^2.0.1",
+    "frp-ts": "^0.0.1",
+    "gradient-string": "^1.2.0",
+    "ink-divider": "^3.0.0",
+    "ink-gradient": "^2.0.0",
+    "monocle-ts": "^2.3.5",
+    "tree-kill": "^1.2.2"
+  }
+}
