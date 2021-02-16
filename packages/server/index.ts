@@ -13,15 +13,17 @@ import { PackageJson } from "./packageJson";
 import { PackageList } from "./PackageList";
 import { fromOption } from "@effect-ts/core/Effect";
 import { SimpleConsoleEnv } from "./ConsoleEnv";
-import { AppWithDeps, mkPackagesState } from "./packagesState";
+import { mkPackagesState } from "./packagesState";
 import { AltScreen } from "./AltScreen";
+import { AppWithDeps } from "./AppWithDeps";
 
 const renderApp = (
   apps: Array<{
     package: PackageJson;
     localDeps: Array<PackageJson>;
   }>,
-  appState: ReturnType<typeof mkPackagesState>
+  appState: ReturnType<typeof mkPackagesState>,
+  rootApp: PackageJson
 ) =>
   T.effectAsync<unknown, unknown, number>((cb) => {
     const exit = () => cb(T.succeed(0));
@@ -30,6 +32,7 @@ const renderApp = (
         workspaces: apps,
         exit,
         packagesState: appState,
+        rootApp,
       })
     );
   });
@@ -48,7 +51,8 @@ const renderApp = (
 // })
 
 pipe(
-  AltScreen.enter,
+  // AltScreen.enter,
+  T.do,
   T.chain(() => initialize),
   T.bind("appPackageJson", (a) =>
     pipe(
@@ -60,17 +64,21 @@ pipe(
   ),
   T.bind("____", ({ appPackageJson }) =>
     T.effectTotal(() => {
-      console.log("starting ", appPackageJson.package.name);
+      // console.log("starting ", appPackageJson.package.name);
     })
   ),
   // T.bind("appStart", (a) =>
   //   pipe(runCommand(a.appPackageJson.package)("start"), T.fork)
   // ),
-  T.bind("reactApp", ({ workspaces }) => {
+  T.bind("reactApp", ({ workspaces, rootApp }) => {
     const ws: Array<AppWithDeps> = workspaces as Array<AppWithDeps>;
-    return renderApp(ws, mkPackagesState(ws));
+    return renderApp(
+      ws,
+      mkPackagesState(ws, rootApp as AppWithDeps),
+      rootApp.package
+    );
   }),
-  T.tap(() => AltScreen.exit),
+  //T.tap(() => AltScreen.exit),
   //T.provide(SimpleConsoleEnv),
   // T.chain(fiber => fiber),
   (e) =>

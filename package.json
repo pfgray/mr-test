@@ -16,7 +16,10 @@
     "gradient-string": "^1.2.0",
     "ink-divider": "^3.0.0",
     "ink-gradient": "^2.0.0",
+    "ink-spinner": "^4.0.1",
+    "ink-use-stdout-dimensions": "^1.0.5",
     "monocle-ts": "^2.3.5",
-    "tree-kill": "^1.2.2"
+    "tree-kill": "^1.2.2",
+    "typescript": "^4.1.5"
   }
 }

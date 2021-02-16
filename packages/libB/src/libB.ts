@@ -1,1 +1,1 @@
-export const libB = (s: string): number => s.length + 1;
+export const libB = (s: string): number => s.length + 3 + 12;

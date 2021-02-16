@@ -13,14 +13,12 @@ export const PS = {
       T.environment<ConsoleEnv>(),
       T.tap(({ console }) =>
         T.effectTotal(() => {
-          console.log(context)("running" + command + " " + args.join(" "));
+          console.log(context)(command + " " + args.join(" "));
         })
       ),
       T.chain(({ console }) =>
         T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
           const child = spawn(command, args);
-
-          console.log(context)("PID: " + child.pid);
 
           child.stdout.on("data", (data) => {
             console.log(context)(data.toString());

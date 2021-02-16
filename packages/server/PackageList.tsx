@@ -1,21 +1,29 @@
 import * as React from "react";
 import { PackageJson } from "./packageJson";
-import { Text, useInput, useApp, Box, Newline, Spacer } from "ink";
+import { Text, useInput, useApp, Box, Static, Spacer } from "ink";
 import { version } from "yargs";
 import { pipe } from "@effect-ts/core/Function";
 import * as A from "@effect-ts/core/Array";
-import { mkPackagesState } from "./packagesState";
+import * as O from "@effect-ts/core/Option";
+import { killedL, mkPackagesState } from "./packagesState";
 import Gradient from "ink-gradient";
 import * as T from "@effect-ts/core/Effect";
+import * as F from "@effect-ts/system/Fiber";
 
 import Divider from "ink-divider";
 import { toGradient } from "./ConsoleEnv";
+import { range } from "@effect-ts/core/Array";
+import useStdoutDimensions from "ink-use-stdout-dimensions";
+
+import Spinner from "ink-spinner";
+import { runMain } from "@effect-ts/node/Runtime";
 
 type PackageListProps = {
   workspaces: Array<{
     package: PackageJson;
     localDeps: Array<PackageJson>;
   }>;
+  rootApp: PackageJson;
   packagesState: ReturnType<typeof mkPackagesState>;
   exit: () => void;
 };
@@ -24,11 +32,30 @@ const between = (min: number, max: number) => (n: number) =>
   Math.min(max, Math.max(n, min));
 
 export const PackageList = (props: PackageListProps) => {
-  const { packagesState: appStateA, workspaces } = props;
+  const { packagesState: appStateA, workspaces, rootApp } = props;
 
   const [packagesState, setPackagesState] = React.useState(
     appStateA.atom.get()
   );
+
+  React.useEffect(() => {
+    pipe(
+      appStateA.startApp(rootApp),
+      T.chain(() =>
+        T.effectAsync((cb) => {
+          appStateA.atom.subscribe({
+            next: () => {
+              if (appStateA.atom.get().killed) {
+                cb(T.succeed(0));
+              }
+            },
+          });
+          return T.succeed(0);
+        })
+      ),
+      T.run
+    );
+  }, []);
 
   React.useEffect(() => {
     const subscription = appStateA.atom.subscribe({
@@ -40,60 +67,60 @@ export const PackageList = (props: PackageListProps) => {
     };
   }, [appStateA]);
 
-  const [highlighted, setHighlighted] = React.useState(0);
   const app = useApp();
-
-  const inRange = between(0, props.workspaces.length - 1);
 
   useInput((input, key) => {
     if (input === "q") {
       app.exit();
+      pipe(
+        appStateA.atom.get().workspaces.map((a) => a.app.package),
+        T.foreach(appStateA.killApp),
+        T.run
+      );
+      appStateA.atom.modify(killedL.modify(() => true));
       props.exit();
-    } else if (key.downArrow) {
-      setHighlighted(inRange(highlighted + 1));
-    } else if (key.upArrow) {
-      setHighlighted(inRange(highlighted - 1));
-    } else if (key.return) {
-      // start watch on every dependency of highlighted package
-      // appStateA.runCommandInApp(workspaces[highlighted].package, "start");
-      pipe(appStateA.startApp(workspaces[highlighted].package), T.run);
-    } else if (input === "k") {
-      appStateA.killApp(workspaces[highlighted].package);
     }
   });
 
+  const [columns, rows] = useStdoutDimensions();
+
   return (
     <>
-      <Divider width={60} />
-      <Box flexDirection="column">
-        {pipe(
-          packagesState.workspaces,
-          A.mapWithIndex((i, w) => (
-            <Box width={60} key={w.app.package.name}>
-              {i === highlighted ? (
-                <Text wrap="truncate" color="yellow">
-                  {">"}
-                </Text>
-              ) : (
-                <Text> </Text>
-              )}
+      <Divider width={columns} padding={0} title={rootApp.name} />
+      {/* <Text color="green">{packagesState.workspaces.length}</Text> */}
+      {packagesState.workspaces
+        .filter((w) => w.app.package.name !== rootApp.name)
+        .map((w) => (
+          <Box key={w.app.package.name} width="35%">
+            <Text>
               <Gradient name={toGradient(w.app.package.name)}>
-                {w.app.package.name}:{w.app.package.version}
+                {w.app.package.name}
               </Gradient>
-              <Spacer />
-              <Text>Status: {w.state}</Text>
-            </Box>
-          ))
-        )}
-
-        {/* <Newline />
-      <Newline />
-      {gradients.map((s) => (
-        <Gradient name={s}>{s}asdfkjnasdfkjlfsdklj</Gradient>
-      ))} */}
-      </Box>
+            </Text>
+            <Spacer />
+            <Text>
+              {w.state === "building" ? <Spinner type="dots" /> : ""}
+              {w.state}
+            </Text>
+          </Box>
+        ))}
     </>
   );
+
+  // <Box flexDirection="column">
+  //   {pipe(
+  //     packagesState.workspaces,
+  //     A.mapWithIndex((i, w) => (
+  //       <Box key={w.app.package.name}>
+  //         <Gradient name={toGradient(w.app.package.name)}>
+  //           {w.app.package.name}:{w.app.package.version}
+  //         </Gradient>
+  //         <jSpacer />
+  //         <Text>{w.state}</Text>
+  //       </Box>
+  //     ))
+  //   )}
+  // </Box>
 
   // return (
   //   <>

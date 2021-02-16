@@ -10,7 +10,6 @@ import { Refinement } from "@effect-ts/core/Function";
 import * as ROA from "fp-ts/lib/ReadonlyArray";
 import * as R from "@effect-ts/core/Record";
 import * as A from "@effect-ts/core/Array";
-import { Equal, makeEqual } from "@effect-ts/core/Equal";
 import { snd } from "fp-ts/lib/Tuple";
 
 const isString = (u: unknown): u is string => typeof u === "string";
@@ -121,6 +120,14 @@ export const initialize = pipe(
     pipe(
       findWorkspaces(context.root, path.dirname(rootP)),
       T.map(A.filter((w) => w.package.name !== "server"))
+    )
+  ),
+  T.bind("rootApp", ({ workspaces, app }) =>
+    T.fromOption(
+      pipe(
+        workspaces,
+        A.findFirst((w) => w.package.name === app)
+      )
     )
   )
 );

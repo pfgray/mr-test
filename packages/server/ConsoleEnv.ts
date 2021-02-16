@@ -1,3 +1,4 @@
+import { range } from "@effect-ts/core/Array";
 import * as T from "@effect-ts/core/Effect";
 import { pipe } from "@effect-ts/core/Function";
 import * as gradient from "gradient-string";
@@ -9,7 +10,7 @@ export interface ConsoleEnv {
   };
 }
 
-const Colors = {
+export const Colors = {
   Reset: "\x1b[0m",
   Bright: "\x1b[1m",
   Dim: "\x1b[2m",
@@ -68,13 +69,32 @@ const gradients = [
   "summer",
 ] as const;
 
+const spaces = (n: number) =>
+  range(0, n)
+    .map(() => " ")
+    .join("");
+
+const formatForContext = (c: string, m: string) =>
+  m
+    .trim()
+    .split("\n")
+    .map((s) => s.trim())
+    .map((s, i) => {
+      // console.log("formattin, ", s, i);
+      return i === 0 ? s : spaces(c.length) + s;
+    })
+    .join("\n");
+
 export const SimpleConsoleEnv: ConsoleEnv = {
   console: {
     log: (c) => (m) => {
-      console.log(gradient[toGradient(c)](c), m.trim());
+      console.log(gradient[toGradient(c)](c), formatForContext(c, m));
     },
     error: (c) => (m) => {
-      console.error(c, "", m.trim());
+      console.error(
+        gradient[toGradient(c)](c),
+        Colors.FgRed + formatForContext(c, m) + Colors.Reset
+      );
     },
   },
 };
