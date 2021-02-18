@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@mr-test/libA",
+  "name": "@mr-test/libC",
   "version": "1.0.0",
   "description": "A webpack code spliting and lazy loading experiment",
   "license": "ISC",
@@ -10,9 +10,6 @@
   "devDependencies": {
     "typescript": "^4.1.3"
   },
-  "dependencies": {
-    "@mr-test/libC": "1.0.0"
-  },
-  "main": "./dist/libA.js",
-  "types": "./dist/libA.d.ts"
+  "main": "./dist/libC.js",
+  "types": "./dist/libC.d.ts"
 }

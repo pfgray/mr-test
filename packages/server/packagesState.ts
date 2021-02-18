@@ -16,7 +16,7 @@ import { snd } from "fp-ts/lib/Tuple";
 import { SimpleConsoleEnv } from "./ConsoleEnv";
 import * as chokidar from "chokidar";
 import path from "path";
-import { AppWithDeps, findDeps, findPackage } from "./AppWithDeps";
+import { AppWithDeps, findDeps, findPackage, findParents } from "./AppWithDeps";
 import { Watch } from "./Watch";
 
 export type AppState =
@@ -24,7 +24,8 @@ export type AppState =
   | "started"
   | "watching"
   | "building"
-  | "inactive";
+  | "inactive"
+  | "waiting";
 export type AppWithProcess = {
   app: AppWithDeps;
   build: O.Option<Fiber<unknown, unknown>>;
@@ -124,21 +125,69 @@ export const mkPackagesState = (
     );
   };
 
-  const buildApp = (p: PackageJson) => {
-    return pipe(
-      T.effectTotal(() => {
-        atom.modify(stateL(p.name).modify(() => "building"));
-      }),
-      T.chain(() =>
-        runCommandInApp(
-          p,
-          "build",
-          T.effectTotal(() => {
-            atom.modify(stateL(p.name).modify(() => "watching"));
-          })
+  const buildPackage = (p: PackageJson): T.UIO<unknown> => {
+    // don't build if a dependency is building
+    const depIsBuilding = pipe(
+      findPackage(workspaces)(p),
+      O.map(findDeps(workspaces, [])),
+      O.chain(O.fromEither),
+      O.fold(() => [] as Array<AppWithDeps>, identity),
+      A.findFirstMap((d) =>
+        pipe(
+          getFirst(stateL(d.package.name))(atom.get()),
+          O.filter((s) => s === "building")
         )
-      )
+      ),
+      O.isSome
     );
+    return depIsBuilding
+      ? T.succeed(0)
+      : pipe(
+          T.do,
+          T.bind("pkg", () => T.fromOption(findPackage(workspaces)(p))),
+          T.tap(({ pkg }) =>
+            T.effectTotal(() => {
+              // update all parents to 'waiting'
+              const parentUpdates = pipe(
+                findParents(workspaces, [])(pkg),
+                O.fromEither,
+                O.fold(
+                  () => [] as Array<(s: PackagesState) => PackagesState>,
+                  A.map((p) => stateL(p.package.name).modify(() => "waiting"))
+                ),
+                A.reduce(
+                  identity as (s: PackagesState) => PackagesState,
+                  (f, g) => (p) => f(g(p))
+                )
+              );
+
+              const updates = (s: PackagesState) =>
+                stateL(p.name).modify(() => "building")(parentUpdates(s));
+
+              atom.modify(updates);
+            })
+          ),
+          T.tap(({ pkg }) =>
+            runCommandInApp(
+              p,
+              "build",
+              pipe(
+                T.effectTotal(() => {
+                  atom.modify(stateL(p.name).modify(() => "watching"));
+                }),
+                T.tap(() =>
+                  pipe(
+                    T.fromEither(() => findParents(workspaces, [])(pkg)),
+                    T.map(A.map((p) => p.package)),
+                    T.chain(T.foreachPar(buildPackage)),
+                    T.orElse(() => T.succeed(0))
+                  )
+                )
+              )
+            )
+          ),
+          T.orElse(() => T.succeed(0))
+        );
   };
 
   const startApp = (p: PackageJson) => {
@@ -171,7 +220,7 @@ export const mkPackagesState = (
               const src = d.package.src ?? "src";
               const watchDir = path.join(process.cwd(), d.dir, src);
               return pipe(
-                Watch.dir(watchDir, () => buildApp(d.package)),
+                Watch.dir(watchDir, () => buildPackage(d.package)),
                 T.fork,
                 T.chain((f) =>
                   T.effectTotal(() => {

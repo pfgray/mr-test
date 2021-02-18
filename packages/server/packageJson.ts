@@ -18,7 +18,8 @@ export const PackageJsonC = t.intersection([
   }),
 ]);
 
-export type PackageJson = t.TypeOf<typeof PackageJsonC>;
+export type PackageJsonT = t.TypeOf<typeof PackageJsonC>;
+export interface PackageJson extends PackageJsonT {}
 
 export const packageJsonEq: Eq<PackageJson> = {
   equals: (a, b) => a.name === b.name && a.version === b.version,

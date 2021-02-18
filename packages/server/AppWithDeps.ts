@@ -41,6 +41,40 @@ export const findDeps = (
   );
 };
 
+export const findParents = (
+  allPackages: Array<AppWithDeps>,
+  childContext: Array<PackageJson>
+) => (
+  p: AppWithDeps
+): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
+  return pipe(
+    childContext,
+    A.findFirst((a) => a.name === p.package.name),
+    O.fold(
+      () =>
+        pipe(
+          allPackages,
+          A.filter((a) =>
+            pipe(
+              a.localDeps,
+              A.findFirst((d) => d.name === p.package.name),
+              O.isSome
+            )
+          ),
+          (parents) =>
+            pipe(
+              parents,
+              A.map(findParents(allPackages, childContext.concat(p.package))),
+              A.sequence(E.Applicative),
+              E.map(A.chain(identity)),
+              E.map((ps) => [...parents, ...ps])
+            )
+        ),
+      () => E.left(circularDep(childContext))
+    )
+  );
+};
+
 export const findPackage = (allPackages: Array<AppWithDeps>) => (
   p: PackageJson
 ) =>
