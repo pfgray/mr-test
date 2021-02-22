@@ -10,6 +10,9 @@
   "devDependencies": {
     "typescript": "^4.1.3"
   },
+  "dependencies": {
+    "@mr-test/libE": "1.0.0"
+  },
   "main": "./dist/libB.js",
   "types": "./dist/libB.d.ts"
 }

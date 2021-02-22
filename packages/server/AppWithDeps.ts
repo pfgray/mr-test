@@ -8,17 +8,17 @@ import { traverse } from "fp-ts/lib/Option";
 export type AppWithDeps = {
   dir: string;
   package: PackageJson;
-  localDeps: PackageJson[];
+  localDeps: ReadonlyArray<PackageJson>;
 };
 
-const circularDep = (context: Array<PackageJson>) => ({
-  tag: literal("CircularDepFound"),
+const circularDep = (context: ReadonlyArray<PackageJson>) => ({
+  _tag: literal("CircularDepFound"),
   context,
 });
 
 export const findDeps = (
-  allPackages: Array<AppWithDeps>,
-  parentContext: Array<PackageJson>
+  allPackages: ReadonlyArray<AppWithDeps>,
+  parentContext: ReadonlyArray<PackageJson>
 ) => (
   p: AppWithDeps
 ): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
@@ -36,14 +36,14 @@ export const findDeps = (
             E.map((ds) => [...deps, ...ds])
           )
         ),
-      () => E.left(circularDep(parentContext))
+      () => E.left(circularDep([...parentContext, p.package]))
     )
   );
 };
 
 export const findParents = (
-  allPackages: Array<AppWithDeps>,
-  childContext: Array<PackageJson>
+  allPackages: ReadonlyArray<AppWithDeps>,
+  childContext: ReadonlyArray<PackageJson>
 ) => (
   p: AppWithDeps
 ): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
@@ -75,7 +75,7 @@ export const findParents = (
   );
 };
 
-export const findPackage = (allPackages: Array<AppWithDeps>) => (
+export const findPackage = (allPackages: ReadonlyArray<AppWithDeps>) => (
   p: PackageJson
 ) =>
   pipe(

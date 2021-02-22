@@ -4,12 +4,12 @@ import * as fs from "fs";
 import glob from "glob";
 
 const pathNotFound = (path: string) => ({
-  tag: literal(`PathNotFound`),
+  _tag: literal(`PathNotFound`),
   path,
 });
 
 const evalError = (path: string) => (exception: unknown) => ({
-  tag: literal(`EvalError`),
+  _tag: literal(`EvalError`),
   path,
   exception,
 });
@@ -37,12 +37,13 @@ export const FS = {
   readFile,
   evalFile,
   glob: (path: string) =>
-    T.effectAsync<unknown, { tag: "GlobError"; path: string }, string[]>((cb) =>
-      glob(path, {}, (err, matches) => {
-        err
-          ? cb(T.fail({ tag: literal("GlobError"), path }))
-          : cb(T.succeed(matches));
-      })
+    T.effectAsync<unknown, { _tag: "GlobError"; path: string }, string[]>(
+      (cb) =>
+        glob(path, {}, (err, matches) => {
+          err
+            ? cb(T.fail({ _tag: literal("GlobError"), path }))
+            : cb(T.succeed(matches));
+        })
     ),
   readDir: (dir: string) =>
     T.effectAsync<unknown, NodeJS.ErrnoException, string[]>((cb) =>

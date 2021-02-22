@@ -21,7 +21,7 @@ const getCommand = (command: string) => (p: PackageJson) =>
     O.chain(A.findFirst(([s]) => s === command)),
     T.fromOption,
     T.mapError(() => ({
-      tag: literal("CommandNotFound"),
+      _tag: literal("CommandNotFound"),
       package: p,
       command,
     })),

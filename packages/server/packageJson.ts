@@ -29,7 +29,7 @@ export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
     T.fromEither(() => PackageJsonC.decode(JSON.parse(contents))),
     T.mapError((errs) => ({
-      tag: literal("ParsePackageJsonError"),
+      _tag: literal("ParsePackageJsonError"),
       //errors: errs,
       parsedError: reporter.report(E.left(errs)),
       packageJsonPath: packagePath,

@@ -14,18 +14,20 @@ import { PackageList } from "./PackageList";
 import { fromOption } from "@effect-ts/core/Effect";
 import { SimpleConsoleEnv } from "./ConsoleEnv";
 import { mkPackagesState } from "./packagesState";
-import { AltScreen } from "./AltScreen";
 import { AppWithDeps } from "./AppWithDeps";
+import { makeMatchers } from "ts-adt/MakeADT";
+
+const [matchTag, matchTagP] = makeMatchers("_tag");
 
 const renderApp = (
-  apps: Array<{
+  apps: ReadonlyArray<{
     package: PackageJson;
-    localDeps: Array<PackageJson>;
+    localDeps: ReadonlyArray<PackageJson>;
   }>,
   appState: ReturnType<typeof mkPackagesState>,
   rootApp: PackageJson
 ) =>
-  T.effectAsync<unknown, unknown, number>((cb) => {
+  T.effectAsync<unknown, never, number>((cb) => {
     const exit = () => cb(T.succeed(0));
     render(
       React.createElement(PackageList, {
@@ -59,7 +61,10 @@ pipe(
       a.workspaces,
       A.findFirst((w) => w.package.name === a.app),
       fromOption,
-      T.mapError(() => ({ tag: literal("InitialAppNotFound"), appName: a.app }))
+      T.mapError(() => ({
+        _tag: literal("InitialAppNotFound"),
+        appName: a.app,
+      }))
     )
   ),
   T.bind("____", ({ appPackageJson }) =>
@@ -67,23 +72,45 @@ pipe(
       // console.log("starting ", appPackageJson.package.name);
     })
   ),
-  // T.bind("appStart", (a) =>
-  //   pipe(runCommand(a.appPackageJson.package)("start"), T.fork)
-  // ),
   T.bind("reactApp", ({ workspaces, rootApp }) => {
-    const ws: Array<AppWithDeps> = workspaces as Array<AppWithDeps>;
     return renderApp(
-      ws,
-      mkPackagesState(ws, rootApp as AppWithDeps),
+      workspaces,
+      mkPackagesState(workspaces, rootApp as AppWithDeps),
       rootApp.package
     );
   }),
-  //T.tap(() => AltScreen.exit),
-  //T.provide(SimpleConsoleEnv),
-  // T.chain(fiber => fiber),
   (e) =>
-    T.run(e, (result) => {
-      // result._tag === "Success" && result.value;
-      // console.log("finished", result);
-    })
+    T.run(
+      e,
+      matchTag({
+        Failure: (err) => [
+          pipe(
+            err.cause,
+            matchTagP(
+              {
+                Fail: (f) =>
+                  pipe(
+                    f.value,
+                    matchTagP(
+                      {
+                        CircularDepFound: (c) => {
+                          console.error(
+                            "Circular dep found: ",
+                            c.context
+                              .map((p) => `${p.name}:${p.version}`)
+                              .join(" -> ")
+                          );
+                        },
+                      },
+                      () => {}
+                    )
+                  ),
+              },
+              () => {}
+            )
+          ),
+        ],
+        Success: () => {},
+      })
+    )
 );

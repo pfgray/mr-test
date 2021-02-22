@@ -99,7 +99,13 @@ export const PackageList = (props: PackageListProps) => {
             </Text>
             <Spacer />
             <Text>
-              {w.state === "building" ? <Spinner type="dots" /> : ""}
+              {w.state === "building" ? (
+                <>
+                  <Spinner type="dots" />{" "}
+                </>
+              ) : (
+                ""
+              )}
               {w.state}
             </Text>
           </Box>

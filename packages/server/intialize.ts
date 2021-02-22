@@ -11,6 +11,7 @@ import * as ROA from "fp-ts/lib/ReadonlyArray";
 import * as R from "@effect-ts/core/Record";
 import * as A from "@effect-ts/core/Array";
 import { snd } from "fp-ts/lib/Tuple";
+import { AppWithDeps, findDeps } from "./AppWithDeps";
 
 const isString = (u: unknown): u is string => typeof u === "string";
 
@@ -19,7 +20,7 @@ const fromPredicate = <A, B extends A>(refinement: Refinement<A, B>) => (
 ) => T.fromOption(O.fromPredicate(refinement)(a));
 
 const errorParsingArgument = (arg: string) => (args: unknown) => ({
-  tag: literal("ParseArgsError"),
+  _tag: literal("ParseArgsError"),
   arg,
   args,
 });
@@ -61,7 +62,7 @@ const parseProject = (dir: string) =>
   pipe(
     FS.lstat(dir),
     T.chain((stat) => (stat.isDirectory() ? T.succeed(stat) : T.fail(0))),
-    T.mapError(() => ({ tag: "PackageIsNotDir" as const, dir })),
+    T.mapError(() => ({ _tag: "PackageIsNotDir" as const, dir })),
     T.chain((stat) => resolveProject(dir)),
     T.map((p) => tuple(dir, p))
   );
@@ -73,7 +74,7 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
   pipe(path.join(dir, "packages"), (packagesDir) =>
     pipe(
       FS.readDir(packagesDir),
-      T.mapError(() => ({ tag: "PackagesDirNotFound" as const, dir, root })),
+      T.mapError(() => ({ _tag: "PackagesDirNotFound" as const, dir, root })),
       T.bind("packages", (pkg) =>
         pipe(
           pkg,
@@ -100,7 +101,8 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
                   )
                 ),
                 R.toArray,
-                A.map(snd)
+                A.map(snd),
+                (hmm) => hmm
               ),
             };
           })
@@ -129,5 +131,13 @@ export const initialize = pipe(
         A.findFirst((w) => w.package.name === app)
       )
     )
-  )
+  ),
+  T.tap(({ workspaces, rootApp }) => checkCircular({ workspaces, rootApp }))
 );
+
+const checkCircular = (options: {
+  workspaces: ReadonlyArray<AppWithDeps>;
+  rootApp: AppWithDeps;
+}) => {
+  return T.fromEither(() => findDeps(options.workspaces, [])(options.rootApp));
+};

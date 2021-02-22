@@ -62,7 +62,7 @@ const stateL = (name: string) =>
   getAppTraversal(name).composeLens(Lens.fromProp<AppWithProcess>()("state"));
 
 export const mkPackagesState = (
-  workspaces: Array<AppWithDeps>,
+  workspaces: ReadonlyArray<AppWithDeps>,
   rootApp: AppWithDeps
 ) => {
   const dependencies = pipe(
@@ -173,13 +173,20 @@ export const mkPackagesState = (
               "build",
               pipe(
                 T.effectTotal(() => {
-                  atom.modify(stateL(p.name).modify(() => "watching"));
+                  console.log("attempting updating ", p.name, "to watching");
+                  atom.modify(
+                    stateL(p.name).modify(() => {
+                      console.log("updating ", p.name, "to watching");
+                      return "watching";
+                    })
+                  );
                 }),
                 T.tap(() =>
                   pipe(
                     T.fromEither(() => findParents(workspaces, [])(pkg)),
                     T.map(A.map((p) => p.package)),
-                    T.chain(T.foreachPar(buildPackage)),
+                    T.map(A.filter((p) => p.name !== rootApp.package.name)),
+                    T.chain(T.foreach(buildPackage)),
                     T.orElse(() => T.succeed(0))
                   )
                 )
@@ -216,20 +223,31 @@ export const mkPackagesState = (
             )(pkg)
           ),
           T.chain(
-            T.foreachPar((d) => {
+            T.foreach((d) => {
               const src = d.package.src ?? "src";
               const watchDir = path.join(process.cwd(), d.dir, src);
+              // if we're already watching this package, don't setup another one
+
               return pipe(
-                Watch.dir(watchDir, () => buildPackage(d.package)),
-                T.fork,
-                T.chain((f) =>
-                  T.effectTotal(() => {
-                    atom.modify((s) =>
-                      watchPsL(d.package.name).modify(() => O.some(f))(
-                        stateL(d.package.name).modify(() => "watching")(s)
+                atom.get().workspaces,
+                A.findFirst((w) => w.app.package.name === d.package.name),
+                O.filter((p) => O.isSome(p.watch)),
+                O.fold(
+                  () =>
+                    pipe(
+                      Watch.dir(watchDir, () => buildPackage(d.package)),
+                      T.fork,
+                      T.chain((f) =>
+                        T.effectTotal(() => {
+                          atom.modify((s) =>
+                            watchPsL(d.package.name).modify(() => O.some(f))(
+                              stateL(d.package.name).modify(() => "watching")(s)
+                            )
+                          );
+                        })
                       )
-                    );
-                  })
+                    ),
+                  () => T.effectTotal(() => {})
                 )
               );
             })
