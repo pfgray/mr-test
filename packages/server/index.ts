@@ -1,21 +1,16 @@
-import * as T from "@effect-ts/core/Effect";
-import * as F from "@effect-ts/system/Fiber";
 import * as A from "@effect-ts/core/Array";
-import { literal, pipe } from "@effect-ts/core/Function";
-import { run, runMain } from "@effect-ts/node/Runtime";
-import { runCommand } from "./command";
-import { initialize } from "./intialize";
-
-import * as React from "react";
-
-import { render, Text } from "ink";
-import { PackageJson } from "./packageJson";
-import { PackageList } from "./PackageList";
+import * as NEA from "@effect-ts/core/NonEmptyArray";
+import * as O from "@effect-ts/core/Option";
+import * as T from "@effect-ts/core/Effect";
 import { fromOption } from "@effect-ts/core/Effect";
-import { SimpleConsoleEnv } from "./ConsoleEnv";
-import { mkPackagesState } from "./packagesState";
-import { AppWithDeps } from "./AppWithDeps";
+import { literal, pipe } from "@effect-ts/core/Function";
+import { render } from "ink";
+import * as React from "react";
 import { makeMatchers } from "ts-adt/MakeADT";
+import { PackageJson } from "./core/PackageJson";
+import { mkPackagesState } from "./core/packagesState";
+import { initialize } from "./intialize";
+import { PackageList } from "./ui/PackageList";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
@@ -39,21 +34,7 @@ const renderApp = (
     );
   });
 
-// run(t, (result) => {
-//   if (result._tag === "Success") {
-//     console.log("rendering");
-//     render(
-//       React.createElement(PackageList, {
-//         workspaces: result.value.workspaces,
-//       })
-//     );
-//   } else {
-//     console.log("not rendering...");
-//   }
-// })
-
 pipe(
-  // AltScreen.enter,
   T.do,
   T.chain(() => initialize),
   T.bind("appPackageJson", (a) =>
@@ -67,15 +48,10 @@ pipe(
       }))
     )
   ),
-  T.bind("____", ({ appPackageJson }) =>
-    T.effectTotal(() => {
-      // console.log("starting ", appPackageJson.package.name);
-    })
-  ),
   T.bind("reactApp", ({ workspaces, rootApp }) => {
     return renderApp(
       workspaces,
-      mkPackagesState(workspaces, rootApp as AppWithDeps),
+      mkPackagesState(workspaces, rootApp),
       rootApp.package
     );
   }),
@@ -94,12 +70,8 @@ pipe(
                     matchTagP(
                       {
                         CircularDepFound: (c) => {
-                          console.error(
-                            "Circular dep found: ",
-                            c.context
-                              .map((p) => `${p.name}:${p.version}`)
-                              .join(" -> ")
-                          );
+                          console.error("Circular dep found:");
+                          console.error(printCircular(c.context));
                         },
                       },
                       () => {}
@@ -114,3 +86,43 @@ pipe(
       })
     )
 );
+
+const printCircular = (deps: readonly PackageJson[]): string => {
+  const depsWithoutRecursive = pipe(deps, A.takeLeft(deps.length - 1));
+  return pipe(
+    deps,
+    A.reverse,
+    NEA.fromArray,
+    O.map(NEA.head),
+    O.map((h) => ({ recursiveDep: h })),
+    O.bind("rIndex", ({ recursiveDep }) =>
+      pipe(
+        depsWithoutRecursive,
+        A.findIndex((d) => d.name === recursiveDep.name)
+      )
+    ),
+    O.map(({ recursiveDep, rIndex }) => {
+      const [before, after] = pipe(deps, A.splitAt(rIndex));
+
+      const afterWithoutRecursive = pipe(after, A.takeLeft(after.length - 1));
+
+      const beforeStrs = before.map((p) => `   ${p.name}`).join("\n    │\n");
+
+      const afterStrs = afterWithoutRecursive
+        .map(
+          (p, i) =>
+            `${
+              i === 0
+                ? "╭─ "
+                : i === afterWithoutRecursive.length - 1
+                ? "╰─ "
+                : "│  "
+            }${p.name}`
+        )
+        .join("\n│   │\n");
+
+      return beforeStrs + "\n    │\n" + afterStrs;
+    }),
+    O.getOrElse(() => "")
+  );
+};

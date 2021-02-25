@@ -1,23 +1,20 @@
 import * as T from "@effect-ts/core/Effect";
 import * as F from "@effect-ts/system/Fiber";
-import { flow, identity, pipe, tuple } from "@effect-ts/core/Function";
+import { identity, pipe } from "@effect-ts/core/Function";
 import * as O from "@effect-ts/core/Option";
 import { Fiber } from "@effect-ts/system/Fiber";
 import { newAtom } from "frp-ts/lib/atom";
 import { newCounterClock } from "frp-ts/lib/clock";
-import { runCommand } from "./command";
-import { PackageJson } from "./packageJson";
+import { runScript } from "../scripts";
+import { PackageJson } from "./PackageJson";
 import { Lens, Prism, fromTraversable, Traversal } from "monocle-ts";
 import { array } from "fp-ts/lib/Array";
-import { fst } from "fp-ts/lib/ReadonlyTuple";
 import * as A from "@effect-ts/core/Array";
 import * as E from "@effect-ts/core/Either";
-import { snd } from "fp-ts/lib/Tuple";
-import { SimpleConsoleEnv } from "./ConsoleEnv";
-import * as chokidar from "chokidar";
+import { SimpleConsoleEnv } from "../console/ConsoleEnv";
 import path from "path";
 import { AppWithDeps, findDeps, findPackage, findParents } from "./AppWithDeps";
-import { Watch } from "./Watch";
+import { WatchE } from "../system/WatchEnv";
 
 export type AppState =
   | "starting"
@@ -108,7 +105,7 @@ export const mkPackagesState = (
     onComplete: T.UIO<unknown>
   ) => {
     return pipe(
-      runCommand(p)(command),
+      runScript(p)(command),
       T.chain(() =>
         T.effectTotal(() => {
           atom.modify(buildPsL(p.name).modify(() => O.none));
@@ -173,13 +170,7 @@ export const mkPackagesState = (
               "build",
               pipe(
                 T.effectTotal(() => {
-                  console.log("attempting updating ", p.name, "to watching");
-                  atom.modify(
-                    stateL(p.name).modify(() => {
-                      console.log("updating ", p.name, "to watching");
-                      return "watching";
-                    })
-                  );
+                  atom.modify(stateL(p.name).modify(() => "watching"));
                 }),
                 T.tap(() =>
                   pipe(
@@ -235,7 +226,7 @@ export const mkPackagesState = (
                 O.fold(
                   () =>
                     pipe(
-                      Watch.dir(watchDir, () => buildPackage(d.package)),
+                      WatchE.dir(watchDir, () => buildPackage(d.package)),
                       T.fork,
                       T.chain((f) =>
                         T.effectTotal(() => {

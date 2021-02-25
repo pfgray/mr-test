@@ -1,22 +1,16 @@
 import * as React from "react";
-import { PackageJson } from "./packageJson";
-import { Text, useInput, useApp, Box, Static, Spacer } from "ink";
-import { version } from "yargs";
+import { PackageJson } from "../core/PackageJson";
+import { Text, useInput, useApp, Box, Spacer } from "ink";
 import { pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import { killedL, mkPackagesState } from "./packagesState";
+import { killedL, mkPackagesState } from "../core/packagesState";
 import Gradient from "ink-gradient";
 import * as T from "@effect-ts/core/Effect";
-import * as F from "@effect-ts/system/Fiber";
 
 import Divider from "ink-divider";
-import { toGradient } from "./ConsoleEnv";
-import { range } from "@effect-ts/core/Array";
+import { toGradient } from "../console/ConsoleEnv";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
 
 import Spinner from "ink-spinner";
-import { runMain } from "@effect-ts/node/Runtime";
 
 type PackageListProps = {
   workspaces: Array<{

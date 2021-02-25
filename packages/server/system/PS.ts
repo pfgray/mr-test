@@ -1,9 +1,7 @@
 import * as T from "@effect-ts/core/Effect";
-import { literal, pipe } from "@effect-ts/core/Function";
-import * as fs from "fs";
-import glob from "glob";
+import { pipe } from "@effect-ts/core/Function";
 import { exec, spawn, ExecException } from "child_process";
-import { ConsoleEnv } from "./ConsoleEnv";
+import { ConsoleEnv } from "../console/ConsoleEnv";
 
 import kill from "tree-kill";
 

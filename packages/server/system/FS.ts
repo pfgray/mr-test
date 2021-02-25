@@ -8,12 +8,6 @@ const pathNotFound = (path: string) => ({
   path,
 });
 
-const evalError = (path: string) => (exception: unknown) => ({
-  _tag: literal(`EvalError`),
-  path,
-  exception,
-});
-
 const readFile = (path: string) =>
   pipe(
     T.fromNodeCb<NodeJS.ErrnoException, string>((cb) =>
@@ -22,20 +16,8 @@ const readFile = (path: string) =>
     T.mapError(() => pathNotFound(path))
   );
 
-const evalSource = (script: string) => pipe(T.try(() => eval(script)));
-
-/**
- * Evalute a file at some path,
- * failing with pathNotFound and a runtime error
- * in the script
- * @param path
- */
-const evalFile = (path: string) =>
-  pipe(FS.readFile(path), T.chain(evalSource), T.mapError(evalError(path)));
-
 export const FS = {
   readFile,
-  evalFile,
   glob: (path: string) =>
     T.effectAsync<unknown, { _tag: "GlobError"; path: string }, string[]>(
       (cb) =>

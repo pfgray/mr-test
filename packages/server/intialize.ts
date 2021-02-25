@@ -3,15 +3,19 @@ import * as fs from "fs";
 import * as path from "path";
 import * as O from "@effect-ts/core/Option";
 import yargs from "yargs/yargs";
-import { FS } from "./fs";
+import { FS } from "./system/FS";
 import { literal, pipe, tuple } from "@effect-ts/core/Function";
-import { PackageJson, PackageJsonC, parsePackageJson } from "./packageJson";
+import {
+  PackageJson,
+  PackageJsonC,
+  parsePackageJson,
+} from "./core/PackageJson";
 import { Refinement } from "@effect-ts/core/Function";
 import * as ROA from "fp-ts/lib/ReadonlyArray";
 import * as R from "@effect-ts/core/Record";
 import * as A from "@effect-ts/core/Array";
 import { snd } from "fp-ts/lib/Tuple";
-import { AppWithDeps, findDeps } from "./AppWithDeps";
+import { AppWithDeps, findDeps } from "./core/AppWithDeps";
 
 const isString = (u: unknown): u is string => typeof u === "string";
 
@@ -48,8 +52,6 @@ const parseArguments = () => {
         T.mapError(() => errorParsingArgument("app")(args))
       )
     )
-    //T.bind("start", ({ argv }) => fromPredicate(isString)(argv["c"])),
-    //T.mapError(() => errorParsingArgument("start")(args))
   );
 };
 

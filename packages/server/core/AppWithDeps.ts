@@ -2,8 +2,7 @@ import { identity, literal, pipe } from "@effect-ts/core/Function";
 import * as O from "@effect-ts/core/Option";
 import * as E from "@effect-ts/core/Either";
 import * as A from "@effect-ts/core/Array";
-import { PackageJson } from "./packageJson";
-import { traverse } from "fp-ts/lib/Option";
+import { PackageJson } from "./PackageJson";
 
 export type AppWithDeps = {
   dir: string;

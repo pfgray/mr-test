@@ -99,7 +99,7 @@ export const SimpleConsoleEnv: ConsoleEnv = {
   },
 };
 
-export const Console = {
+export const ConsoleE = {
   log: (context: string) => (msg: string) =>
     pipe(
       T.environment<ConsoleEnv>(),
